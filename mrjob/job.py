@@ -367,7 +367,7 @@ class MRJob(object):
         for w in bad_words:
             if w in sys.argv:
                 raise UsageError("make_runner() was called with %s. This probably means you tried to use it from __main__, which doesn't work." % w)
-        
+
         # have to import here so that we can still run the MRJob
         # without importing boto
         from mrjob.emr import EMRJobRunner
@@ -416,7 +416,7 @@ class MRJob(object):
 
         If we encounter a line that can't be decoded by our input protocol,
         or a tuple that can't be encoded by our output protocol, we'll
-        increment a counter rather than raising an exception. If 
+        increment a counter rather than raising an exception. If
         --strict-protocols is set, then an exception is raised
 
         Called from :py:meth:`run`. You'd probably only want to call this
@@ -453,7 +453,7 @@ class MRJob(object):
 
         If we encounter a line that can't be decoded by our input protocol,
         or a tuple that can't be encoded by our output protocol, we'll
-        increment a counter rather than raising an exception. If 
+        increment a counter rather than raising an exception. If
         --strict-protocols is set, then an exception is raised
 
         Called from :py:meth:`run`. You'd probably only want to call this
@@ -795,7 +795,7 @@ class MRJob(object):
             '--jobconf', dest='jobconf', default={}, action='set_key', type='key_value_pair',
             help='-jobconf arg to pass through to hadoop streaming; '
             'should take the form KEY=VALUE. You can use --jobconf '
-            'multiple times.')
+            'multiple times.  Compression is managed via compress_with')
 
         self.hadoop_emr_opt_group.add_option(
             '--label', '--job-name-prefix', dest='label', default=None,
@@ -804,6 +804,10 @@ class MRJob(object):
         self.hadoop_emr_opt_group.add_option(
             '--owner', dest='owner', default=None,
             help='custom username to use, to help us identify who ran the job')
+
+        self.hadoop_emr_opt_group.add_option(
+            '--compress-with', dest='compress_with', default=None,
+            help='Hadoop compression codec to use on the last step of the job (org.apache.hadoop.io.compress.GzipCodec)')
 
         # options for running the job on Hadoop
         self.hadoop_opt_group = OptionGroup(
@@ -1068,6 +1072,9 @@ class MRJob(object):
         You might find :py:meth:`mrjob.conf.combine_dicts` useful if you
         want to add or change lots of keyword arguments.
         """
+        if 'mapred.output.compress' in self.options.jobconf or 'mapred.output.compression.codec' in self.options.jobconf:
+            raise OptionError('Output compression managed exclusively through "--compress-with", remove jobconfs args and try again')
+
         return {
             'bootstrap_mrjob': self.options.bootstrap_mrjob,
             'cleanup': self.options.cleanup,
