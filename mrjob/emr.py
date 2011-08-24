@@ -419,7 +419,6 @@ class EMRJobRunner(MRJobRunner):
             'ssh_bind_ports',
             'ssh_tunnel_is_open',
             'ssh_tunnel_to_job_tracker',
-            'compress_with',
         ]
 
     @classmethod
@@ -884,7 +883,7 @@ class EMRJobRunner(MRJobRunner):
 
         step_list = []
 
-        # Automatically LZO compress our step mapper output.  This'll reduce the data we need to write to S3 while still being splittable
+        # Automatically LZO compress intermediate step mapper output.  This'll reduce the data we need to write to S3 while still being splittable
         # --compress-with will supercede this setting for the last step so the user's specified compression codec will still be respected
         # See runner.py:_hadoop_conf_args for the logic that does this
         if self._opts['hadoop_version'] == '0.20':

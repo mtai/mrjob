@@ -795,7 +795,7 @@ class MRJob(object):
             '--jobconf', dest='jobconf', default={}, action='set_key', type='key_value_pair',
             help='-jobconf arg to pass through to hadoop streaming; '
             'should take the form KEY=VALUE. You can use --jobconf '
-            'multiple times.  Compression is managed via compress_with')
+            'multiple times.  Compression is managed via --compress-with')
 
         self.hadoop_emr_opt_group.add_option(
             '--label', '--job-name-prefix', dest='label', default=None,
@@ -807,7 +807,7 @@ class MRJob(object):
 
         self.hadoop_emr_opt_group.add_option(
             '--compress-with', dest='compress_with', default=None,
-            help='Hadoop compression codec to use on the last step of the job (org.apache.hadoop.io.compress.GzipCodec)')
+            help='Hadoop compression codec to use on the last step of the job (eg org.apache.hadoop.io.compress.GzipCodec)')
 
         # options for running the job on Hadoop
         self.hadoop_opt_group = OptionGroup(
@@ -1053,6 +1053,9 @@ class MRJob(object):
         if not self.options.output_protocol:
             self.options.output_protocol = self.options.protocol
 
+        if 'mapred.output.compress' in self.options.jobconf or 'mapred.output.compression.codec' in self.options.jobconf:
+            raise OptionValueError('Output compression managed exclusively through --compress-with, remove jobconfs args and try again')
+
     def is_mapper_or_reducer(self):
         """True if this is a mapper/reducer.
 
@@ -1072,9 +1075,6 @@ class MRJob(object):
         You might find :py:meth:`mrjob.conf.combine_dicts` useful if you
         want to add or change lots of keyword arguments.
         """
-        if 'mapred.output.compress' in self.options.jobconf or 'mapred.output.compression.codec' in self.options.jobconf:
-            raise OptionError('Output compression managed exclusively through "--compress-with", remove jobconfs args and try again')
-
         return {
             'bootstrap_mrjob': self.options.bootstrap_mrjob,
             'cleanup': self.options.cleanup,

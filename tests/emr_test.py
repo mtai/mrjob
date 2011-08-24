@@ -32,7 +32,7 @@ import mrjob.emr
 from mrjob.emr import EMRJobRunner, describe_all_job_flows, parse_s3_uri
 from mrjob.parse import JOB_NAME_RE
 from mrjob.util import tar_and_gzip
-from tests.mockboto import MockS3Connection, MockEmrConnection, MockEmrObject, MockKey, add_mock_s3_data, DEFAULT_MAX_DAYS_AGO, DEFAULT_MAX_JOB_FLOWS_RETURNED, to_iso8601
+from tests.mockboto import MockS3Connection, MockEmrConnection, MockEmrObject, add_mock_s3_data, DEFAULT_MAX_JOB_FLOWS_RETURNED, to_iso8601
 from tests.mr_two_step_job import MRTwoStepJob
 from tests.quiet import logger_disabled, no_handlers_for_logger
 
@@ -325,6 +325,14 @@ class EMRJobRunnerEndToEndTestCase(MockEMRAndS3TestCase):
 
             assert_equal(job_flow.hadoopversion, '0.18')
 
+            # Make sure hadoop 0.18 never gets LZO compression
+            assert_not_in('mapred.output.compress=true', job_flow.steps[0].args())
+            assert_not_in('mapred.output.compression.codec=com.hadoop.compression.lzo.LzoCodec', job_flow.steps[0].args())
+
+            # Make sure hadoop 0.18 never gets LZO compression
+            assert_not_in('mapred.output.compress=true', job_flow.steps[1].args())
+            assert_not_in('mapred.output.compression.codec=com.hadoop.compression.lzo.LzoCodec', job_flow.steps[1].args())
+
     def test_set_hadoop_version(self):
         stdin = StringIO('foo\nbar\n')
         mr_job = MRTwoStepJob(['-r', 'emr', '-v',
@@ -339,6 +347,38 @@ class EMRJobRunnerEndToEndTestCase(MockEMRAndS3TestCase):
             job_flow = emr_conn.describe_jobflow(runner.get_emr_job_flow_id())
 
             assert_equal(job_flow.hadoopversion, '0.20')
+
+            # Make sure intermediary steps get LZO compression
+            assert_in('mapred.output.compress=true', job_flow.steps[0].args())
+            assert_in('mapred.output.compression.codec=com.hadoop.compression.lzo.LzoCodec', job_flow.steps[0].args())
+
+            # Make sure that the LZO setting doesn't stick for the last step
+            assert_not_in('mapred.output.compress=true', job_flow.steps[1].args())
+            assert_not_in('mapred.output.compression.codec=com.hadoop.compression.lzo.LzoCodec', job_flow.steps[1].args())
+
+    def test_set_hadoop_version_compress_with(self):
+        stdin = StringIO('foo\nbar\n')
+        mr_job = MRTwoStepJob(['-r', 'emr', '-v',
+                               '-c', self.mrjob_conf_path,
+                               '--hadoop-version', '0.20',
+                               '--compress-with', 'org.apache.hadoop.io.compress.GzipCodec'])
+        mr_job.sandbox(stdin=stdin)
+
+        with mr_job.make_runner() as runner:
+            runner.run()
+
+            emr_conn = runner.make_emr_conn()
+            job_flow = emr_conn.describe_jobflow(runner.get_emr_job_flow_id())
+
+            assert_equal(job_flow.hadoopversion, '0.20')
+
+            # Make sure intermediary steps get LZO compression
+            assert_in('mapred.output.compress=true', job_flow.steps[0].args())
+            assert_in('mapred.output.compression.codec=com.hadoop.compression.lzo.LzoCodec', job_flow.steps[0].args())
+
+            # Make sure that the LZO setting gets overridden by --compress-woth
+            assert_in('mapred.output.compress=true', job_flow.steps[1].args())
+            assert_in('mapred.output.compression.codec=org.apache.hadoop.io.compress.GzipCodec', job_flow.steps[1].args())
 
     def test_availability_zone_config(self):
         # Confirm that the mrjob.conf option 'aws_availability_zone' was

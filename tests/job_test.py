@@ -303,10 +303,10 @@ class ProtocolsTestCase(TestCase):
 
         mr_job = MRBoringJob(args=['--reducer', '--strict-protocols'])
         mr_job.sandbox(stdin=BAD_JSON_INPUT)
-        
+
         # make sure it raises an exception
         assert_raises(Exception, mr_job.run_reducer)
-        
+
     def test_unencodable_output(self):
         UNENCODABLE_RAW_INPUT = StringIO('foo\n' +
                                          '\xaa\n' +
@@ -322,7 +322,7 @@ class ProtocolsTestCase(TestCase):
 
         assert_equal(mr_job.parse_counters(),
                      {'Unencodable output': {'UnicodeDecodeError': 1}})
-                     
+
     def test_undecodable_output_strict(self):
         UNENCODABLE_RAW_INPUT = StringIO('foo\n' +
                                          '\xaa\n' +
@@ -330,7 +330,7 @@ class ProtocolsTestCase(TestCase):
 
         mr_job = MRBoringJob(args=['--mapper', '--strict-protocols'])
         mr_job.sandbox(stdin=UNENCODABLE_RAW_INPUT)
-        
+
         # make sure it raises an exception
         assert_raises(Exception, mr_job.run_mapper)
 
@@ -572,6 +572,14 @@ class CommandLineArgsTest(TestCase):
             ('--accordian-file', 'WeirdAl.mp3'),
             ('--accordian-file', '/home/dave/JohnLinnell.ogg')])
 
+    def test_restricted_jobconf(self):
+        flag_only = ['--jobconf', 'mapred.output.compress=true']
+        assert_raises(OptionValueError, MRBoringJob, flag_only)
+
+        codec_only = ['--jobconf', 'mapred.output.compression.codec=org.apache.hadoop.io.compress.GzipCodec']
+        assert_raises(OptionValueError, MRBoringJob, codec_only)
+
+        assert_raises(OptionValueError, MRBoringJob, flag_only + codec_only)
 
 class FileOptionsTestCase(TestCase):
     # make sure custom file options work with --steps (Issue #45)
@@ -664,11 +672,11 @@ class RunJobTestCase(TestCase):
         assert_not_equal(stderr, '')
         assert_equal(returncode, 0)
         assert_gt(len(stderr), len(normal_stderr))
-        
+
     def test_no_output(self):
         assert_equal(os.listdir(self.tmp_dir), []) # sanity check
-        
-        args = ['--no-output', '--output-dir', self.tmp_dir]        
+
+        args = ['--no-output', '--output-dir', self.tmp_dir]
         stdout, stderr, returncode = self.run_job(args)
         assert_equal(stdout, '')
         assert_not_equal(stderr, '')

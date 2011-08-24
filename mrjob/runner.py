@@ -265,6 +265,7 @@ class MRJobRunner(object):
             'hadoop_output_format',
             'hadoop_streaming_jar',
             'jobconf',
+            'compress_with',
             'label',
             'owner',
             'python_archives',
@@ -955,8 +956,11 @@ class MRJobRunner(object):
             if self._opts.get('hadoop_output_format'):
                 args.extend(['-outputformat', self._opts['hadoop_output_format']])
 
+            import pprint
+            pprint.pprint(self._opts)
+
             # Manage output compression
-            if self._opts['compress_with']:
+            if self._opts.get('compress_with'):
                 copied_jobconf_args['mapred.output.compress'] = 'true'
                 copied_jobconf_args['mapred.output.compression.codec'] = self._opts['compress_with']
             else:
