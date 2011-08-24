@@ -1,7 +1,8 @@
-v0.2.7-efficient-reducing, 2011-08-24
+v0.2.7-adku-20110824a, 2011-08-24
  * Protocols derived from SplitTabProtocol only deserialize repeated reducer keys once. This decreased my overall job time by 9%
  * Protocols are no longer managed through PROTOCOL_DICT. Deleted in favor of ProtocolRegistrar which'll automatically register all protocols on declaration (if the classes are imported)
  * Protocols promoted to instances instead of @classmethod holders
+ * Added auto-LZO compression between steps on EMR
 
 v0.2.7, 2011-07-12 -- Hooray for interns!
  * All runner options can be set from the command line (Issue #121)

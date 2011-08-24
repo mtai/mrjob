@@ -256,3 +256,17 @@ class TestHadoopConfArgs(TestCase):
         conf_args = runner._hadoop_conf_args(0, 1)
         assert_equal(conf_args[:2], ['-libjar', 'qux.jar'])
         assert_equal(len(conf_args), 10)
+
+    def test_compress_with(self):
+        gzip_codec = 'org.apache.hadoop.io.compress.GzipCodec'
+        runner = MRJobRunner(conf_path=False, compress_with=gzip_codec)
+
+        # When there's only 1 step, assert that --compress-with sets the compression codec
+        expected_hadoop_args = ['-jobconf', 'mapred.output.compress=true', '-jobconf', 'mapred.output.compression.codec=%s' % gzip_codec]
+        assert_equal(runner._hadoop_conf_args(0, 1), expected_hadoop_args)
+
+        # When we're on step 1 of 2, don't try to compress
+        assert_equal(runner._hadoop_conf_args(0, 2), [])
+
+        # When we're on step 2 of 2, compress again
+        assert_equal(runner._hadoop_conf_args(1, 2), expected_hadoop_args)

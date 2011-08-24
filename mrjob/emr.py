@@ -244,7 +244,7 @@ class EMRJobRunner(MRJobRunner):
         :type aws_region: str
         :param aws_region: region to connect to S3 and EMR on (e.g. ``us-west-1``). If you want to use separate regions for S3 and EMR, set *emr_endpoint* and *s3_endpoint*.
         :type bootstrap_actions: list of str
-        :param bootstrap_actions: a list of raw bootstrap actions (essentially scripts) to run prior to any of the other bootstrap steps. Any arguments should be separated from the command by spaces (we use :py:func:`shlex.split`). If the action is on the local filesystem, we'll automatically upload it to S3. 
+        :param bootstrap_actions: a list of raw bootstrap actions (essentially scripts) to run prior to any of the other bootstrap steps. Any arguments should be separated from the command by spaces (we use :py:func:`shlex.split`). If the action is on the local filesystem, we'll automatically upload it to S3.
         :type bootstrap_cmds: list
         :param bootstrap_cmds: a list of commands to run on the master node to set up libraries, etc. Like *setup_cmds*, these can be strings, which will be run in the shell, or lists of args, which will be run directly. Prepend ``sudo`` to commands to do things that require root privileges.
         :type bootstrap_files: list of str
@@ -509,7 +509,7 @@ class EMRJobRunner(MRJobRunner):
                 elif not self._aws_region:
                     # aws_region not specified, so set it based on this
                     #   bucket's location and use this bucket
-                    self._aws_region = scratch_bucket_location 
+                    self._aws_region = scratch_bucket_location
                     log.info("inferring aws_region from scratch bucket's region (%s)" %
                              self._aws_region)
                     self._opts['s3_scratch_uri'] = 's3://%s/tmp/' % scratch_bucket_name
@@ -800,7 +800,7 @@ class EMRJobRunner(MRJobRunner):
         args = {}
 
         args['hadoop_version'] = self._opts['hadoop_version']
-        
+
         if self._opts['aws_availability_zone']:
             args['availability_zone'] = self._opts['aws_availability_zone']
 
@@ -822,7 +822,7 @@ class EMRJobRunner(MRJobRunner):
 
         # bootstrap actions
         bootstrap_action_args = []
-        
+
         for file_dict in self._bootstrap_actions:
             bootstrap_action_args.append(
                 botoemr.BootstrapAction(
@@ -835,7 +835,7 @@ class EMRJobRunner(MRJobRunner):
 
         if bootstrap_action_args:
             args['bootstrap_actions'] = bootstrap_action_args
-            
+
 
         if self._opts['ec2_key_pair']:
             args['ec2_keyname'] = self._opts['ec2_key_pair']
@@ -882,6 +882,13 @@ class EMRJobRunner(MRJobRunner):
         steps = self._get_steps()
 
         step_list = []
+
+        # Automatically LZO compress intermediate step mapper output.  This'll reduce the data we need to write to S3 while still being splittable
+        # --compress-with will supercede this setting for the last step so the user's specified compression codec will still be respected
+        # See runner.py:_hadoop_conf_args for the logic that does this
+        if self._opts['hadoop_version'] == '0.20':
+            self._opts['jobconf']['mapred.output.compress'] = 'true'
+            self._opts['jobconf']['mapred.output.compression.codec'] = 'com.hadoop.compression.lzo.LzoCodec'
 
         for step_num, step in enumerate(steps):
             # EMR-specific stuff
@@ -1236,7 +1243,7 @@ class EMRJobRunner(MRJobRunner):
         # give priority to task-attempts/ logs as they contain more useful
         # error messages. this may take a while.
         s3_conn = self.make_s3_conn()
-        
+
         return (
             self._scan_task_attempt_logs(s3_log_file_uris, step_nums, s3_conn)
             or self._scan_step_logs(s3_log_file_uris, step_nums, s3_conn)
@@ -1358,10 +1365,10 @@ class EMRJobRunner(MRJobRunner):
 
     def _scan_job_logs(self, s3_log_file_uris, step_nums, s3_conn):
         """Scan jobs/* for timeout errors.
-        
+
         Helper for _find_probable_cause_of_failure()
         """
-        
+
         relevant_logs = [] # list of (sort key, info, URI)
         for s3_log_file_uri in s3_log_file_uris:
             match = JOB_LOG_URI_RE.match(s3_log_file_uri)
@@ -1379,12 +1386,12 @@ class EMRJobRunner(MRJobRunner):
             relevant_logs.append((sort_key, info, s3_log_file_uri))
 
         relevant_logs.sort(reverse=True)
-        
+
         for sort_key, info, s3_log_file_uri in relevant_logs:
             log_path = self._download_log_file(s3_log_file_uri, s3_conn)
             if not log_path:
                 continue
-            
+
             with open(log_path) as log_file:
                 n = find_timeout_error(log_file)
 

@@ -265,6 +265,7 @@ class MRJobRunner(object):
             'hadoop_output_format',
             'hadoop_streaming_jar',
             'jobconf',
+            'compress_with',
             'label',
             'owner',
             'python_archives',
@@ -931,7 +932,8 @@ class MRJobRunner(object):
         files.
         """
         assert 0 <= step_num < num_steps
-
+        is_first_step = bool(step_num == 0)
+        is_last_step = bool(step_num + 1 == num_steps)
         args = []
 
         # hadoop_extra_args
@@ -943,17 +945,27 @@ class MRJobRunner(object):
             args.append('%s=%s' % (key, value))
 
         # hadoop_input_format
-        if (step_num == 0 and
+        if (is_first_step and
             self._opts.get('hadoop_input_format')):
             args.extend(['-inputformat', self._opts['hadoop_input_format']])
 
-        # hadoop_output_format
-        if (step_num == num_steps - 1 and
-            self._opts.get('hadoop_output_format')):
-            args.extend(['-outputformat', self._opts['hadoop_output_format']])
+        copied_jobconf_args = dict(self._opts['jobconf'])
+
+        if is_last_step:
+            # hadoop_output_format
+            if self._opts.get('hadoop_output_format'):
+                args.extend(['-outputformat', self._opts['hadoop_output_format']])
+
+            # Manage output compression
+            if self._opts.get('compress_with'):
+                copied_jobconf_args['mapred.output.compress'] = 'true'
+                copied_jobconf_args['mapred.output.compression.codec'] = self._opts['compress_with']
+            else:
+                copied_jobconf_args.pop('mapred.output.compress', None)
+                copied_jobconf_args.pop('mapred.output.compression.codec', None)
 
         # jobconf
-        for key, value in sorted(self._opts['jobconf'].iteritems()):
+        for key, value in sorted(copied_jobconf_args.iteritems()):
             args.extend(['-jobconf', '%s=%s' % (key, value)])
 
         return args
