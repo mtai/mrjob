@@ -385,7 +385,7 @@ class EMRJobRunner(MRJobRunner):
 
         # turn off tracker progress until tunnel is up
         self._show_tracker_progress = False
-#
+
     @classmethod
     def _allowed_opts(cls):
         """A list of which keyword args we can pass to __init__()"""

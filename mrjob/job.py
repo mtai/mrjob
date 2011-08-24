@@ -1086,6 +1086,7 @@ class MRJob(object):
             'hadoop_input_format': self.options.hadoop_input_format,
             'hadoop_output_format': self.options.hadoop_output_format,
             'hadoop_streaming_jar': self.options.hadoop_streaming_jar,
+            'compress_with': self.options.compress_with,
             'input_paths': self.args,
             'jobconf': self.options.jobconf,
             'mr_job_script': self.mr_job_script(),
